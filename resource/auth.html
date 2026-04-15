@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星尘服务器 · 登录/注册</title>
+    <link rel="stylesheet" href="common.css">
+</head>
+<body>
+<div class="app-wrapper">
+    <header class="glass-nav">
+        <div class="logo-area"><div class="logo-icon"><span>⚡</span></div><div class="logo-text">NebulaServer</div></div>
+        <div class="nav-buttons">
+            <a href="index.html" class="nav-btn">🏠 首页</a>
+            <a href="picture.html" class="nav-btn">🖼️ 图片</a>
+            <a href="video.html" class="nav-btn">🎬 视频</a>
+            <a href="auth.html?tab=register" class="nav-btn btn-register">📝 注册</a>
+            <a href="auth.html?tab=login" class="nav-btn btn-login">🔐 登录</a>
+        </div>
+    </header>
+    <div class="content-panel">
+        <div class="auth-wrapper">
+            <div class="auth-tabs">
+                <button class="auth-tab" id="tab-login">🔑 登录</button>
+                <button class="auth-tab" id="tab-register">📝 注册</button>
+            </div>
+            <!-- 消息提示区域 -->
+            <div id="auth-message" style="text-align: center; margin: 1rem 1rem 0; min-height: 2rem;"></div>
+            <!-- 登录表单 -->
+            <div id="login-panel" class="auth-form">
+                <div class="input-group"><label>👤 用户名</label><input type="text" id="login-username" placeholder="用户名"></div>
+                <div class="input-group"><label>🔒 密码</label><input type="password" id="login-password" placeholder="密码"></div>
+                <button class="submit-btn" id="do-login">登 录</button>
+                <div class="demo-tip">🔐 真实后端验证，请确保服务端接口可用</div>
+            </div>
+            <!-- 注册表单 -->
+            <div id="register-panel" class="auth-form" style="display: none;">
+                <div class="input-group"><label>📛 用户名</label><input type="text" id="reg-username" placeholder="至少3个字符"></div>
+                <div class="input-group"><label>📧 邮箱</label><input type="email" id="reg-email" placeholder="example@test.com"></div>
+                <div class="input-group"><label>🔐 密码</label><input type="password" id="reg-password" placeholder="设置密码"></div>
+                <div class="input-group"><label>✓ 确认密码</label><input type="password" id="reg-confirm" placeholder="再次输入"></div>
+                <button class="submit-btn" id="do-register">注 册</button>
+                <div class="demo-tip">📝 真实后端注册，请确保服务端接口可用</div>
+            </div>
+        </div>
+    </div>
+    <footer>✨ NebulaServer · C++ WebServer 技术验证 ✨</footer>
+</div>
+<script src="common.js"></script>
+<script src="auth.js"></script>
+</body>
+</html>
