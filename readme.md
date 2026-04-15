@@ -1,4 +1,5 @@
 ### 0、项目结构
+```
 .
 ├── code           源代码
 │   ├── buffer
@@ -22,6 +23,7 @@
 ├── webbench-1.5   压力测试
 ├── Makefile
 └── readme.md
+```
 
 ### 1、build
 需要先配置好数据库
