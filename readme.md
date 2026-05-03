@@ -53,3 +53,4 @@ make
 wrk -t 4 -c 5000 -d 30s --latency http://ip:port/
 ```
 
+### bug fix
