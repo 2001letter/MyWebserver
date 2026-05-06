@@ -51,12 +51,11 @@ make
 
 ### 2、Test
 ```shell
-cd ./webbench-1.5
-make
-./webbench -c 5000 -t 30 http://ip:port/
+sudo apt install wrk
+wrk -t 16 -c 5000 -d 30s --latency http://ip:port/
 # 参数：
-# 	-c 表示客户端数
-# 	-t 表示时间
-# 或使用wrk进行测试
-wrk -t 4 -c 5000 -d 30s --latency http://ip:port/
+# 	-t 表示使用线程数
+# 	-c 表示客户端连接数量
+#   -d 表示时间
 ```
+![alt text](imgs/press.png)
