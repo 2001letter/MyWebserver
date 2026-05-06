@@ -4,15 +4,22 @@ bool HttpConn::isET;
 std::atomic<int> HttpConn::clientCount;
 std::string HttpConn::srcDir;
 long HttpConn::timeout;
+std::unordered_map<std::string, std::string> HttpConn::cacheFile{};
 
 HttpConn::HttpConn()
-    : iovCount_(0), offset_(nullptr), remaining_(0), fd_(0), addr_({0}), isClose_(false), isRange_(false) {}
+    : iovCount_(0), offset_(nullptr), remaining_(0), fd_(0), addr_({0}), isClose_(false), isRange_(false), httpRes_(new HttpResponse) {}
 
 HttpConn::~HttpConn() {
     Close();
 }
 
 void HttpConn::HttpInit(int fd, const sockaddr_in &addr) {
+    if(offset_) {
+        offset_ = nullptr;
+    }
+    if(!httpRes_){
+        httpRes_ = new HttpResponse;
+    }
     fd_ = fd;
     addr_ = addr;
     isClose_ = false;
@@ -43,9 +50,9 @@ ssize_t HttpConn::WriteResponse(int *Errno) {
             break;
         }
         if (iov_[0].iov_len == 0) { // buffer已写完，写文件
-            if (httpRes_.GetFileFd() != -1) {
-                remaining_ = httpRes_.GetFileSize() - *offset_;
-                len = sendfile(fd_, httpRes_.GetFileFd(), offset_, remaining_);
+            if (httpRes_->GetFileFd() != -1) {
+                remaining_ = httpRes_->GetFileSize() - *offset_;
+                len = sendfile(fd_, httpRes_->GetFileFd(), offset_, remaining_);
                 if (len <= 0) {
                     *Errno = errno;
                     break;
@@ -88,29 +95,31 @@ void HttpConn::Process() {
     // 这里解析完成后，根据GET POST方法调用各自的处理函数
     std::string mes;
     httpReq_.GetHeadMes(mes);
-    httpRes_.ResponseInit(HttpConn::srcDir, httpReq_.GetPath(), IsKeepAlive(), HttpConn::timeout, mes, stateCode);
+    httpRes_->ResponseInit(srcDir, httpReq_.GetPath(), IsKeepAlive(), HttpConn::timeout, mes, stateCode);
     if (httpReq_.GetMethod() == "GET" || httpReq_.GetMethod() == "HEAD") {
-        httpRes_.MakeResponse(buffer_);
+        httpRes_->MakeResponse(buffer_);
     } else if (httpReq_.GetMethod() == "POST") {
-        httpRes_.MakeResponse(buffer_, httpReq_.GetBody());
+        httpRes_->MakeResponse(buffer_, httpReq_.GetBody());
     }
 
     std::string resq(buffer_.Peek(), buffer_.ReadableBytes());
     iov_[0].iov_base = const_cast<char *>(buffer_.Peek());
     iov_[0].iov_len = buffer_.ReadableBytes();
     iovCount_ = 1;
-    if (httpRes_.GetFileFd() != -1) {
-        offset_ = httpRes_.GetFileStart();
+    if (httpRes_->GetFileFd() != -1) {
+        offset_ = httpRes_->GetFileStart();
     }
-    // if (httpRes_.GetFileSize() > 0 && httpRes_.GetFilePtr()) {
-    //     iov_[1].iov_base = httpRes_.GetFilePtr();
-    //     iov_[1].iov_len = httpRes_.GetFileSize();
+    // if (httpRes_->GetFileSize() > 0 && httpRes_->GetFilePtr()) {
+    //     iov_[1].iov_base = httpRes_->GetFilePtr();
+    //     iov_[1].iov_len = httpRes_->GetFileSize();
     //     iovCount_ = 2;
     // }
 }
 
 void HttpConn::Close() {
-    httpRes_.Close();
+    httpRes_->Close();
+    delete httpRes_;
+    httpRes_ = nullptr;
     isClose_ = true;
     close(fd_);
     clientCount--;
@@ -128,3 +137,17 @@ int HttpConn::GetFd() const { return fd_; }
 int HttpConn::GetClientCount() const { return clientCount; }
 
 bool HttpConn::IsKeepAlive() const { return httpReq_.IsKeepAlive(); }
+
+void HttpConn::LoadCacheFile()
+{
+    for(const auto& file : fs::directory_iterator(srcDir)){
+        if(file.is_regular_file()){
+            std::ifstream infile(file.path(), std::ios::binary);
+            if(infile){
+                std::string fileName = "/" + file.path().filename().string();
+                std::string content((std::istreambuf_iterator<char>(infile)), std::istreambuf_iterator<char>());
+                cacheFile[fileName] = std::move(content);
+            }
+        }
+    }
+}

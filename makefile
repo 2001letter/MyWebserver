@@ -1,7 +1,7 @@
-# 编译器和标志
+# 编译器和标志 -fsanitize=address
 CXX = g++
-CXXFLAGS = -fsanitize=address -g -Wall -pthread -std=c++20
-LDFLAGS = -lmysqlcppconn -fsanitize=address
+CXXFLAGS = -O2 -Wall -pthread -std=c++20
+LDFLAGS = -lmysqlcppconn
 
 # 目标可执行文件（放在 out 目录）
 TARGET = bin/main

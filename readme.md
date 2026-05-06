@@ -26,7 +26,14 @@
 ```
 
 ### 1、build
-需要先配置好数据库
+下载mysql开发库
+```shell
+# C++ mysql开发库
+sudo apt install libmysqlcppconn-dev -y
+# mysql
+sudo apt install mysql-server
+```
+mysql配置
 ```sql
 CREATE DATABASE webserverdb;
 USE webserverdb;
@@ -36,6 +43,7 @@ CREATE TABLE user(
     email    char(50) NULL
 );
 ```
+编译运行
 ```shell
 make
 ./bin/main

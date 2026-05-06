@@ -4,6 +4,7 @@
 #include "../buffer/buffer.h"
 #include "../log/log.h"
 #include "../pool/sqlpool.h"
+#include "httpconn.h"
 #include <fcntl.h>
 #include <filesystem>
 #include <format>

@@ -15,6 +15,7 @@ Server::Server(int port, int trigeMode, bool openLog, LogLevel logLevel, long ti
     HttpConn::clientCount = 0;
     HttpConn::srcDir = resDir_;
     HttpConn::timeout = timeout_;
+    HttpConn::LoadCacheFile();
     SqlPool::Instance().Init(host, name, pwd, db);
     // LT ET模式初始化 socket初始化
     InitTrigeMode_(trigeMode);
@@ -32,12 +33,12 @@ void Server::start() {
     if (!isClose_) {
         DEBUG_LOG(LOG_INFO, "------Server start------");
     }
-    long timeout = -1;
+    // long timeout = -1;
     while (!isClose_) {
-        if (timeout_ > 0) {
-            timeout = timer_->GetNextTick();
-        }
-        int nfds = epoller_->Wait(timeout);
+        // if (timeout_ > 0) {
+        //     timeout = timer_->GetNextTick();
+        // }
+        int nfds = epoller_->Wait();
         for (int i = 0; i < nfds; i++) {
             int fd = epoller_->GetEventFd(i);
             uint32_t event = epoller_->GetEvent(i);
@@ -101,7 +102,7 @@ bool Server::InitSocket_() {
         close(serverFd_);
         return false;
     }
-    if (listen(serverFd_, 128) < 0) {
+    if (listen(serverFd_, SOMAXCONN) < 0) {
         DEBUG_LOG(LOG_ERROR, "listen port: {} error!", port_);
         close(serverFd_);
         return false;
@@ -150,14 +151,15 @@ void Server::DealRead_(HttpConn &httpClient) {
 void Server::OnRead_(HttpConn &httpClient) {
     int Errno = 0;
     int ret = httpClient.ReadRequest(&Errno);
-    if (ret <= 0 && (Errno != EAGAIN || Errno != EWOULDBLOCK)) {
-        DEBUG_LOG(LOG_ERROR, "Client[{}] read error!", httpClient.GetFd());
+    if (ret <= 0 ) {
+        if(Errno == EAGAIN || Errno == EWOULDBLOCK){
+            httpClient.Process();
+            epoller_->ModFd(httpClient.GetFd(), clientEvent_ | EPOLLOUT);
+            return;
+        }
+        DEBUG_LOG(LOG_ERROR, "Client[{}] read error with code {}, ret {}", httpClient.GetFd(), Errno, ret);
         httpClient.Close();
-        return;
     }
-    // todo
-    httpClient.Process();
-    epoller_->ModFd(httpClient.GetFd(), clientEvent_ | EPOLLOUT);
 }
 
 void Server::DealWrite_(HttpConn &httpClient) {
@@ -194,6 +196,6 @@ void Server::CloseClient_(HttpConn &httpClient) {
     int fd = httpClient.GetFd();
     epoller_->DelFd(fd);
     httpClient.Close();
-    timer_->DelTimer(fd);
+    // timer_->DelTimer(fd);
     // client_.erase(fd);
 }

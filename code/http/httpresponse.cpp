@@ -164,6 +164,12 @@ void HttpResponse::AddResHeader_(Buffer &buffer) {
 }
 
 void HttpResponse::AddResBody_(Buffer &buffer) {
+    auto it = HttpConn::cacheFile.find(path_);
+    if(it != HttpConn::cacheFile.end()){
+        body_ += it->second;
+        return;
+    }
+
     int fd = open((srcDir_ + path_).c_str(), O_RDONLY);
     if (fd == -1) {
         DEBUG_LOG(LOG_ERROR, "open file {} error", path_);

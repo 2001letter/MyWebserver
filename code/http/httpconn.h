@@ -10,6 +10,7 @@
 #include <netinet/in.h> // sockaddr_in
 #include <sys/sendfile.h>
 
+class HttpResponse;
 // 从socket缓冲区读取数据到buffer->解析(http request)->构造响应(http response)->发送buffer数据到socket缓冲区
 class HttpConn {
   public:
@@ -28,6 +29,9 @@ class HttpConn {
     int GetClientCount() const;
     bool IsKeepAlive() const;
 
+    static void LoadCacheFile();
+    static std::unordered_map<std::string, std::string> cacheFile;
+
     static bool isET;
     static std::atomic<int> clientCount;
     static std::string srcDir;
@@ -44,7 +48,7 @@ class HttpConn {
     bool isClose_;
     bool isRange_;
     HttpRequest httpReq_;
-    HttpResponse httpRes_;
+    HttpResponse* httpRes_;
 };
 
 #endif
