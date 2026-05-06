@@ -19,7 +19,7 @@
 class Server {
   public:
     Server(int port, int trigeMode, bool openLog, LogLevel logLevel, long timeout, const std::string &host,
-           const std::string &name, const std::string &pwd, const std::string &db);
+           const std::string &name, const std::string &pwd, const std::string &db, int threadNum, int sqlNum);
     ~Server();
     void start();
 

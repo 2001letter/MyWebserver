@@ -47,7 +47,7 @@ class Log {
     int today_;        // 按当天日期分类
     int index_;
     int countLine_;                   // 当前写入行数
-    static const int MAX_LINE = 5000; // 一个文件中最大行数
+    static const int MAX_LINE = 10000; // 一个文件中最大行数
     std::ofstream file_;              // 打开的文件对象
     bool isAsyn_;                     // 是否开启异步
     std::mutex mutex_;

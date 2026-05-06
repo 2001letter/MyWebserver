@@ -1,4 +1,6 @@
 {
     "makefile.configureOnOpen": true,
-    "search.followSymlinks": false
+    "search.followSymlinks": false,
+    "C_Cpp.clang_format_style": "file:/home/letter/projects/.clang-format",
+    "files.autoSave": "afterDelay"
 }

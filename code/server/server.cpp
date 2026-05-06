@@ -1,13 +1,15 @@
 #include "server.h"
 
 Server::Server(int port, int trigeMode, bool openLog, LogLevel logLevel, long timeout, const std::string &host,
-               const std::string &name, const std::string &pwd, const std::string &db)
+               const std::string &name, const std::string &pwd, const std::string &db, int threadNum, int sqlNum)
     : port_(port), isClose_(false), timeout_(timeout), timer_(new HeapTimer), epoller_(new Epoller),
-      threadPool_(new ThreadPool(8)) {
+      threadPool_(new ThreadPool(threadNum)) {
     // 日志初始化
     if (openLog) {
         Log::Instance()->init(logLevel, "./log/", true);
         DEBUG_LOG(LOG_INFO, "------server init------");
+        DEBUG_LOG(LOG_INFO, "Log Level: {}", std::to_string(logLevel));
+        DEBUG_LOG(LOG_INFO, "ThreadPool Num: {}, SqlPool Num: {}", threadNum, sqlNum);
     }
 
     resDir_ = fs::current_path();
@@ -16,7 +18,8 @@ Server::Server(int port, int trigeMode, bool openLog, LogLevel logLevel, long ti
     HttpConn::srcDir = resDir_;
     HttpConn::timeout = timeout_;
     HttpConn::LoadCacheFile();
-    SqlPool::Instance().Init(host, name, pwd, db);
+
+    SqlPool::Instance().Init(host, name, pwd, db, sqlNum);
     // LT ET模式初始化 socket初始化
     InitTrigeMode_(trigeMode);
     if (!InitSocket_()) {
@@ -33,12 +36,12 @@ void Server::start() {
     if (!isClose_) {
         DEBUG_LOG(LOG_INFO, "------Server start------");
     }
-    // long timeout = -1;
+    long timeout = -1;
     while (!isClose_) {
-        // if (timeout_ > 0) {
-        //     timeout = timer_->GetNextTick();
-        // }
-        int nfds = epoller_->Wait();
+        if (timeout_ > 0) {
+            timeout = timer_->GetNextTick();
+        }
+        int nfds = epoller_->Wait(timeout);
         for (int i = 0; i < nfds; i++) {
             int fd = epoller_->GetEventFd(i);
             uint32_t event = epoller_->GetEvent(i);
@@ -151,8 +154,8 @@ void Server::DealRead_(HttpConn &httpClient) {
 void Server::OnRead_(HttpConn &httpClient) {
     int Errno = 0;
     int ret = httpClient.ReadRequest(&Errno);
-    if (ret <= 0 ) {
-        if(Errno == EAGAIN || Errno == EWOULDBLOCK){
+    if (ret <= 0) {
+        if (Errno == EAGAIN || Errno == EWOULDBLOCK) {
             httpClient.Process();
             epoller_->ModFd(httpClient.GetFd(), clientEvent_ | EPOLLOUT);
             return;
@@ -189,12 +192,8 @@ void Server::AdjustTimer_(HttpConn &httpClient) {
 }
 
 void Server::CloseClient_(HttpConn &httpClient) {
+    std::lock_guard<std::mutex> lock(mux_);
     int fd = httpClient.GetFd();
     epoller_->DelFd(fd);
-    // httpClient.Close();
-    // timer_->DelTimer(fd);
-    {
-        std::lock_guard<std::mutex> lock(mux_);
-        client_.erase(fd);
-    }
+    client_.erase(fd);
 }

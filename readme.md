@@ -60,8 +60,3 @@ make
 # 或使用wrk进行测试
 wrk -t 4 -c 5000 -d 30s --latency http://ip:port/
 ```
-
-### bug fix
-todo
-1、优化日志模块
-2、修复定时模块

@@ -12,10 +12,6 @@ void Log::init(LogLevel level, const std::string &path, bool isAsyn) {
     countLine_ = 0;
     isAsyn_ = isAsyn;
     if (isAsyn_) {
-        // std::unique_ptr<BlockQueue<std::string>> newDeque(new BlockQueue<std::string>);
-        // blockDeq_ = move(newDeque);
-        // std::unique_ptr<std::thread> newThread(new std::thread(asynWriteThread));
-        // writeThread_ = move(newThread);
         blockDeq_ = std::make_unique<BlockQueue<std::string>>();
         writeThread_ = std::make_unique<std::thread>(asynWriteThread);
     }
@@ -46,6 +42,8 @@ void Log::logMessage(LogLevel level, const std::string &formats) {
             countLine_ = 0;
         }
         if (today_ != sysTime->tm_mday) {
+            // todo 
+            // 压缩前一天的日志
             ofile = std::format("/{}-{:02}-{:02}-{:02}.log", sysTime->tm_year + 1900, sysTime->tm_mon + 1,
                                 sysTime->tm_mday, 1);
             today_ = sysTime->tm_mday;

@@ -17,7 +17,7 @@ void HeapTimer::Tick() {
             break;
         }
         node.cb();
-        // DelTimer(node.id);
+        DelTimer(node.id);
     }
 }
 

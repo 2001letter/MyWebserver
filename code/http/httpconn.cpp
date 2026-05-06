@@ -37,7 +37,7 @@ ssize_t HttpConn::ReadRequest(int *Errno) {
 ssize_t HttpConn::WriteResponse(int *Errno) {
     ssize_t len = -1;
     do {
-        len = send(fd_, buffer_.Peek(), buffer_.ReadableBytes(), 0);
+        len = send(fd_, buffer_.Peek(), buffer_.ReadableBytes(), MSG_NOSIGNAL);
         if (len < 0) {
             *Errno = errno;
             break;
