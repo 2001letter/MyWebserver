@@ -6,20 +6,14 @@ std::string HttpConn::srcDir;
 long HttpConn::timeout;
 std::unordered_map<std::string, std::string> HttpConn::cacheFile{};
 
-HttpConn::HttpConn()
-    : iovCount_(0), offset_(nullptr), remaining_(0), fd_(0), addr_({0}), isClose_(false), isRange_(false), httpRes_(new HttpResponse) {}
+HttpConn::HttpConn() : offset_(0), remaining_(0), fd_(0), addr_({0}), isClose_(false), isRange_(false) {}
 
 HttpConn::~HttpConn() {
     Close();
 }
 
 void HttpConn::HttpInit(int fd, const sockaddr_in &addr) {
-    if(offset_) {
-        offset_ = nullptr;
-    }
-    if(!httpRes_){
-        httpRes_ = new HttpResponse;
-    }
+    offset_ = 0;
     fd_ = fd;
     addr_ = addr;
     isClose_ = false;
@@ -30,7 +24,7 @@ void HttpConn::HttpInit(int fd, const sockaddr_in &addr) {
 }
 
 ssize_t HttpConn::ReadRequest(int *Errno) {
-    ssize_t len;
+    ssize_t len = -1;
     do {
         len = buffer_.ReadFd(fd_, Errno);
         if (len <= 0) {
@@ -41,18 +35,17 @@ ssize_t HttpConn::ReadRequest(int *Errno) {
 }
 
 ssize_t HttpConn::WriteResponse(int *Errno) {
-
     ssize_t len = -1;
     do {
-        len = writev(fd_, iov_, iovCount_);
+        len = send(fd_, buffer_.Peek(), buffer_.ReadableBytes(), 0);
         if (len < 0) {
             *Errno = errno;
             break;
         }
-        if (iov_[0].iov_len == 0) { // buffer已写完，写文件
-            if (httpRes_->GetFileFd() != -1) {
-                remaining_ = httpRes_->GetFileSize() - *offset_;
-                len = sendfile(fd_, httpRes_->GetFileFd(), offset_, remaining_);
+        if(buffer_.ReadableBytes() == 0){   // buffer已写完，写文件
+            if (httpRes_.GetFileFd() != -1) {
+                remaining_ = httpRes_.GetFileSize() - offset_;
+                len = sendfile(fd_, httpRes_.GetFileFd(), &offset_, remaining_);
                 if (len <= 0) {
                     *Errno = errno;
                     break;
@@ -61,22 +54,11 @@ ssize_t HttpConn::WriteResponse(int *Errno) {
                 break;
             }
         }
-        if (iov_[0].iov_len >= static_cast<size_t>(len)) { // buffer里的数据没有写完
-            iov_[0].iov_base = (uint8_t *)iov_[0].iov_base + len;
-            iov_[0].iov_len -= len;
+        if(buffer_.ReadableBytes() >= static_cast<size_t>(len)){ // buffer里的数据没有写完
             buffer_.Retrieve(len);
         } else {
             buffer_.RetrieveAll();
-            iov_[0].iov_len = 0;
         }
-        // else if (iovCount_ == 2) { // 映射的文件没写完
-        //     iov_[1].iov_base = (uint8_t *)iov_[1].iov_base + (len - iov_[0].iov_len);
-        //     iov_[1].iov_len -= (len - iov_[0].iov_len);
-        //     if (iov_[0].iov_len) {
-        //         buffer_.RetrieveAll();
-        //         iov_[0].iov_len = 0;
-        //     }
-        // }
     } while (isET);
     return len;
 }
@@ -95,31 +77,25 @@ void HttpConn::Process() {
     // 这里解析完成后，根据GET POST方法调用各自的处理函数
     std::string mes;
     httpReq_.GetHeadMes(mes);
-    httpRes_->ResponseInit(srcDir, httpReq_.GetPath(), IsKeepAlive(), HttpConn::timeout, mes, stateCode);
+    httpRes_.ResponseInit(srcDir, httpReq_.GetPath(), IsKeepAlive(), HttpConn::timeout, mes, stateCode);
     if (httpReq_.GetMethod() == "GET" || httpReq_.GetMethod() == "HEAD") {
-        httpRes_->MakeResponse(buffer_);
+        httpRes_.MakeResponse(buffer_);
     } else if (httpReq_.GetMethod() == "POST") {
-        httpRes_->MakeResponse(buffer_, httpReq_.GetBody());
+        httpRes_.MakeResponse(buffer_, httpReq_.GetBody());
     }
 
-    std::string resq(buffer_.Peek(), buffer_.ReadableBytes());
-    iov_[0].iov_base = const_cast<char *>(buffer_.Peek());
-    iov_[0].iov_len = buffer_.ReadableBytes();
-    iovCount_ = 1;
-    if (httpRes_->GetFileFd() != -1) {
-        offset_ = httpRes_->GetFileStart();
+    if (httpRes_.GetFileFd() != -1) {
+        offset_ = httpRes_.GetFileStart();
     }
-    // if (httpRes_->GetFileSize() > 0 && httpRes_->GetFilePtr()) {
-    //     iov_[1].iov_base = httpRes_->GetFilePtr();
-    //     iov_[1].iov_len = httpRes_->GetFileSize();
-    //     iovCount_ = 2;
-    // }
+}
+
+bool HttpConn::TryClose()
+{
+    bool expected = false;
+    return isClose_.compare_exchange_strong(expected, true);
 }
 
 void HttpConn::Close() {
-    httpRes_->Close();
-    delete httpRes_;
-    httpRes_ = nullptr;
     isClose_ = true;
     close(fd_);
     clientCount--;

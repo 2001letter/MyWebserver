@@ -158,7 +158,7 @@ void Server::OnRead_(HttpConn &httpClient) {
             return;
         }
         DEBUG_LOG(LOG_ERROR, "Client[{}] read error with code {}, ret {}", httpClient.GetFd(), Errno, ret);
-        httpClient.Close();
+        CloseClient_(httpClient);
     }
 }
 
@@ -173,10 +173,6 @@ void Server::OnWrite_(HttpConn &httpClient) {
     if (ret < 0) {
         if (Errno == EAGAIN) {
             epoller_->ModFd(httpClient.GetFd(), clientEvent_ | EPOLLOUT);
-            return;
-        }
-        if (Errno == EPIPE || Errno == ECONNRESET) {
-            CloseClient_(httpClient);
             return;
         }
     } else if (httpClient.IsKeepAlive()) {
@@ -195,7 +191,10 @@ void Server::AdjustTimer_(HttpConn &httpClient) {
 void Server::CloseClient_(HttpConn &httpClient) {
     int fd = httpClient.GetFd();
     epoller_->DelFd(fd);
-    httpClient.Close();
+    // httpClient.Close();
     // timer_->DelTimer(fd);
-    // client_.erase(fd);
+    {
+        std::lock_guard<std::mutex> lock(mux_);
+        client_.erase(fd);
+    }
 }

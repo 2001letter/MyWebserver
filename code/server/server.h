@@ -47,6 +47,7 @@ class Server {
     std::unique_ptr<Epoller> epoller_;
     std::unique_ptr<ThreadPool> threadPool_;
     std::unordered_map<int, HttpConn> client_; // [fd]httpconn
+    std::mutex mux_;
 };
 
 #endif

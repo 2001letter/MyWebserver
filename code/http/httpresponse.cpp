@@ -1,4 +1,5 @@
 #include "httpresponse.h"
+#include "httpconn.h"
 
 const std::unordered_map<std::string, std::string> HttpResponse::SUFFIX_TYPE = {
     {".html", "text/html"},          {".xml", "text/xml"},          {".xhtml", "application/xhtml+xml"},
@@ -22,19 +23,18 @@ const std::unordered_map<std::string, std::string> HttpResponse::CODE_PATH = {
 };
 
 HttpResponse::HttpResponse()
-    : isKeepAlive_(false), timeout_(-1), headMes_(), stateCode_(), contentFile_(nullptr), fileFd_(-1), fileSize_(0),
-      fileStart_(0), fileEnd_(0) {}
+    : isKeepAlive_(false), timeout_(-1), fileFd_(-1), fileSize_(0), fileStart_(0), fileEnd_(0) {}
 
 HttpResponse::~HttpResponse() { Close(); }
 
 void HttpResponse::Close() {
-    close(fileFd_);
-    FreeMmap_();
+    if(fileFd_ != -1) {
+        close(fileFd_);
+    }
 }
 
 void HttpResponse::ResponseInit(const std::string &dir, const std::string &path, bool keepAlive, long timeout,
                                 const std::string &mes, const std::string &code) {
-    FreeMmap_();
     version_ = "HTTP/1.1";
     srcDir_ = dir;
     path_ = path;
@@ -45,7 +45,6 @@ void HttpResponse::ResponseInit(const std::string &dir, const std::string &path,
     stateMes_ = "";
     body_ = "\r\n";
     header_.clear();
-    contentFile_ = nullptr;
     fileFd_ = -1;
     fileSize_ = 0;
     fileStart_ = 0;
@@ -113,22 +112,13 @@ void HttpResponse::MakeResponse(Buffer &buffer, const std::unordered_map<std::st
     buffer.Append(body_);
 }
 
-char *HttpResponse::GetFilePtr() { return contentFile_; }
-
-off_t *HttpResponse::GetFileStart() { return &fileStart_; }
+off_t HttpResponse::GetFileStart() { return fileStart_; }
 
 uintmax_t HttpResponse::GetFileEnd() const { return fileEnd_; }
 
 uintmax_t HttpResponse::GetFileSize() const { return fileSize_; }
 
 int HttpResponse::GetFileFd() const { return fileFd_; }
-
-void HttpResponse::FreeMmap_() {
-    if (contentFile_) {
-        munmap((void *)contentFile_, fileSize_);
-        contentFile_ = nullptr;
-    }
-}
 
 void HttpResponse::AddStateLine_(Buffer &buffer) {
     // HTTP/1.1 200 OK
@@ -177,11 +167,6 @@ void HttpResponse::AddResBody_(Buffer &buffer) {
         return;
     }
     fileFd_ = fd;
-    // contentFile_ = (char *)mmap(NULL, fileSize_, PROT_READ, MAP_PRIVATE, fd, 0);
-    // if (contentFile_ == MAP_FAILED) {
-    //     ErrorHtml_();
-    //     DEBUG_LOG(LOG_ERROR, "mmap file {} error", path_);
-    // }
 }
 
 void HttpResponse::ErrorHtml_() {

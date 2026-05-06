@@ -4,7 +4,6 @@
 #include "../buffer/buffer.h"
 #include "../log/log.h"
 #include "../pool/sqlpool.h"
-#include "httpconn.h"
 #include <fcntl.h>
 #include <filesystem>
 #include <format>
@@ -28,10 +27,9 @@ class HttpResponse {
     void MakeResponse(Buffer &buffer);
     void MakeResponse(Buffer &buffer, const std::unordered_map<std::string, std::string> &body);
 
-    char *GetFilePtr();
     uintmax_t GetFileSize() const;
     int GetFileFd() const;
-    off_t* GetFileStart();
+    off_t GetFileStart();
     uintmax_t GetFileEnd() const;
 
   private:
@@ -48,8 +46,6 @@ class HttpResponse {
     std::string headMes_;
     std::string version_, stateCode_, stateMes_, srcDir_, path_, body_;
     std::unordered_map<std::string, std::string> header_;
-    // 响应体
-    char *contentFile_;
     int fileFd_;
     fs::file_status fileStat_;
     uintmax_t fileSize_;
